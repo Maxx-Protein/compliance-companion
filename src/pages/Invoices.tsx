@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { jsPDF } from "jspdf";
 
 const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -229,6 +230,121 @@ const Invoices = () => {
   };
 
   const totals = calculateTotals();
+
+  const handleDownloadPdf = (invoice: any) => {
+    try {
+      const doc = new jsPDF();
+
+      const items = (invoice.items || []) as any[];
+      const isInterstate = invoice.place_of_supply && sellerState && invoice.place_of_supply !== sellerState;
+      const subtotal = Number(invoice.subtotal ?? 0);
+      const sgst = Number(invoice.sgst_amount ?? 0);
+      const cgst = Number(invoice.cgst_amount ?? 0);
+      const igst = Number(invoice.igst_amount ?? 0);
+      const discountAmount = Number(invoice.discount_amount ?? 0);
+      const tcs = Number(invoice.tcs_deducted ?? 0);
+      const totalAmount = Number(invoice.total_amount ?? 0);
+
+      let y = 10;
+      doc.setFontSize(16);
+      doc.text("Invoice", 10, y);
+      y += 8;
+
+      doc.setFontSize(11);
+      doc.text(`Invoice No: ${invoice.invoice_number}`, 10, y);
+      y += 6;
+      doc.text(`Date: ${invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString() : "-"}`, 10, y);
+      y += 6;
+
+      doc.text(`Bill To: ${invoice.customer_name}`, 10, y);
+      y += 6;
+      if (invoice.customer_gstin) {
+        doc.text(`GSTIN: ${invoice.customer_gstin}`, 10, y);
+        y += 6;
+      }
+      if (invoice.customer_state) {
+        doc.text(`State: ${invoice.customer_state}`, 10, y);
+        y += 8;
+      }
+
+      doc.setFontSize(12);
+      doc.text("Items", 10, y);
+      y += 6;
+
+      doc.setFontSize(10);
+      doc.text("Product", 10, y);
+      doc.text("HSN", 60, y);
+      doc.text("Qty", 90, y);
+      doc.text("Rate", 110, y);
+      doc.text("Amount", 140, y);
+      y += 4;
+      doc.line(10, y, 200, y);
+      y += 4;
+
+      items.forEach((item) => {
+        const name = item.product_name || "-";
+        const hsn = item.hsn_code || "-";
+        const qty = Number(item.quantity ?? 0);
+        const rate = Number(item.rate ?? 0);
+        const amount = Number(item.amount ?? qty * rate);
+
+        doc.text(String(name).slice(0, 30), 10, y);
+        doc.text(String(hsn), 60, y);
+        doc.text(String(qty), 90, y, { align: "right" });
+        doc.text(String(rate.toFixed(2)), 120, y, { align: "right" });
+        doc.text(String(amount.toFixed(2)), 160, y, { align: "right" });
+        y += 6;
+      });
+
+      if (y > 240) {
+        doc.addPage();
+        y = 20;
+      }
+
+      y += 4;
+      doc.line(10, y, 200, y);
+      y += 6;
+
+      doc.setFontSize(11);
+      doc.text(`Subtotal: ₹${subtotal.toFixed(2)}`, 120, y);
+      y += 5;
+
+      if (isInterstate) {
+        doc.text(`IGST: ₹${igst.toFixed(2)}`, 120, y);
+        y += 5;
+      } else {
+        doc.text(`CGST: ₹${cgst.toFixed(2)}`, 120, y);
+        y += 5;
+        doc.text(`SGST: ₹${sgst.toFixed(2)}`, 120, y);
+        y += 5;
+      }
+
+      if (discountAmount > 0) {
+        doc.text(`Discount: -₹${discountAmount.toFixed(2)}`, 120, y);
+        y += 5;
+      }
+
+      doc.text(`TCS (1%): ₹${tcs.toFixed(2)}`, 120, y);
+      y += 5;
+
+      doc.setFontSize(12);
+      doc.text(`Total: ₹${totalAmount.toFixed(2)}`, 120, y);
+      y += 8;
+
+      if (invoice.notes) {
+        doc.setFontSize(10);
+        doc.text("Notes:", 10, y);
+        y += 5;
+        const splitNotes = doc.splitTextToSize(String(invoice.notes), 180);
+        doc.text(splitNotes, 10, y);
+      }
+
+      doc.save(`${invoice.invoice_number || "invoice"}.pdf`);
+    } catch (error) {
+      console.error("Failed to generate PDF", error);
+      toast.error("Failed to generate PDF");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -494,8 +610,8 @@ const Invoices = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {invoices.map(invoice => (
-                  <div 
+                {invoices.map((invoice) => (
+                  <div
                     key={invoice.id}
                     className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors"
                   >
@@ -513,11 +629,29 @@ const Invoices = () => {
                         {invoice.customer_name} • {new Date(invoice.invoice_date).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-lg">₹{parseFloat(invoice.total_amount).toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        GST: ₹{(parseFloat(invoice.sgst_amount) + parseFloat(invoice.cgst_amount) + parseFloat(invoice.igst_amount)).toFixed(2)}
-                      </p>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-semibold text-lg">
+                          ₹{parseFloat(invoice.total_amount).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          GST: ₹
+                          {(
+                            parseFloat(invoice.sgst_amount) +
+                            parseFloat(invoice.cgst_amount) +
+                            parseFloat(invoice.igst_amount)
+                          ).toFixed(2)}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => handleDownloadPdf(invoice)}
+                      >
+                        <Download className="w-4 h-4" />
+                        PDF
+                      </Button>
                     </div>
                   </div>
                 ))}
