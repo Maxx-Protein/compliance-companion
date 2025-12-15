@@ -17,6 +17,7 @@ import {
   Legend,
 } from "recharts";
 import { jsPDF } from "jspdf";
+import { PageTour } from "@/components/PageTour";
 
 const Reports = () => {
   const { user } = useAuth();
@@ -26,6 +27,30 @@ const Reports = () => {
   const [filings, setFilings] = useState<any[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
+
+  const tourSteps = [
+    {
+      target: "body",
+      placement: "center" as const,
+      content:
+        "Reports helps you analyse sales, GST and TCS over time and per product.",
+    },
+    {
+      target: '[data-tour="reports-filters"]',
+      content:
+        "Use these filters to narrow analytics to a particular month or year before exporting.",
+    },
+    {
+      target: '[data-tour="reports-charts"]',
+      content:
+        "Charts summarise revenue, GST/TCS trends and product performance visually.",
+    },
+    {
+      target: '[data-tour="reports-invoices"]',
+      content:
+        "This list shows the individual invoices behind the current analytics with quick PDF access.",
+    },
+  ];
 
   useEffect(() => {
     if (user) {
@@ -293,12 +318,13 @@ const Reports = () => {
 
   return (
     <div className="space-y-6">
+      <PageTour tourId="reports" steps={tourSteps} />
       <div>
         <h1 className="text-3xl font-bold mb-2">Reports</h1>
         <p className="text-muted-foreground">Generate tax and compliance reports</p>
       </div>
 
-      <Card className="p-6 space-y-4">
+      <Card className="p-6 space-y-4" data-tour="reports-filters">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="grid md:grid-cols-3 gap-4 flex-1">
             <div>
@@ -364,7 +390,7 @@ const Reports = () => {
               variant="outline"
               className="flex-1 sm:flex-none"
               onClick={exportFilteredAnalyticsCsv}
-           >
+            >
               <Download className="w-4 h-4 mr-2" />
               Export CSV
             </Button>
