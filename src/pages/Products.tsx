@@ -35,6 +35,7 @@ const Products = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
 
   const tourSteps = [
     {
@@ -82,6 +83,7 @@ const Products = () => {
 
   const fetchProducts = async () => {
     if (!user) return;
+    setListLoading(true);
 
     const { data, error } = await supabase
       .from("products")
@@ -91,10 +93,12 @@ const Products = () => {
 
     if (error) {
       toast.error("Failed to load products");
+      setListLoading(false);
       return;
     }
 
     if (data) setProducts(data);
+    setListLoading(false);
   };
 
   const resetForm = () => {
