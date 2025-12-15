@@ -2,17 +2,45 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, FileText, AlertCircle, CheckCircle2, DollarSign, Package } from "lucide-react";
+import { PageTour } from "@/components/PageTour";
 
 const Dashboard = () => {
+  const steps = [
+    {
+      target: "body",
+      placement: "center",
+      content:
+        "Welcome to your dashboard. This overview shows key GST, sales and compliance metrics.",
+    },
+    {
+      target: "[data-tour="dashboard-stats"]",
+      content: "These cards summarise sales, GST and product counts at a glance.",
+    },
+    {
+      target: "[data-tour="dashboard-actions"]",
+      content:
+        "Use Quick Actions to jump straight into creating invoices, filing returns or adding products.",
+    },
+    {
+      target: "[data-tour="dashboard-alerts"]",
+      content:
+        "Alerts highlight upcoming GST deadlines and actions that may need attention.",
+    },
+  ] as const;
+
   return (
     <div className="space-y-6">
+      <PageTour tourId="dashboard" steps={steps as any} />
       <div>
         <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
         <p className="text-muted-foreground">Overview of your compliance & tax status</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        data-tour="dashboard-stats"
+      >
         <Card className="p-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">Total Sales</span>
@@ -64,7 +92,7 @@ const Dashboard = () => {
       </div>
 
       {/* Quick Actions */}
-      <Card className="p-6">
+      <Card className="p-6" data-tour="dashboard-actions">
         <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Button className="bg-primary hover:bg-primary-hover">Create Invoice</Button>
@@ -75,7 +103,7 @@ const Dashboard = () => {
       </Card>
 
       {/* Alerts */}
-      <Card className="p-6">
+      <Card className="p-6" data-tour="dashboard-alerts">
         <h2 className="text-lg font-semibold mb-4">Alerts & Notices</h2>
         <div className="space-y-3">
           <div className="flex items-start gap-3 p-3 rounded-lg bg-warning/10 border border-warning/20">
