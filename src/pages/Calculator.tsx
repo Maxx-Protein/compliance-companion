@@ -414,6 +414,13 @@ const Calculator = () => {
                   <span className="font-semibold">Net GST Payable</span>
                   <span className="text-2xl font-bold text-primary">₹{itc.netGstPayable.toFixed(2)}</span>
                 </div>
+
+                {itc.eligibleItc > itc.gstCollected && (
+                  <p className="text-xs text-warning">
+                    * Warning: Eligible ITC is higher than GST collected. Double-check
+                    your inputs before relying on this figure.
+                  </p>
+                )}
               </div>
             </Card>
           </div>
@@ -517,6 +524,13 @@ const Calculator = () => {
                     ₹{pl.netProfit.toFixed(2)}
                   </span>
                 </div>
+
+                {pl.grossSales > 0 && Math.abs(pl.netProfit) > pl.grossSales && (
+                  <p className="text-xs text-warning">
+                    * Warning: Net profit magnitude is higher than gross sales.
+                    Double-check your inputs for errors.
+                  </p>
+                )}
 
                 <p className="text-xs text-muted-foreground pt-2">
                   Profit margin: {pl.grossSales > 0 ? ((pl.netProfit / pl.grossSales) * 100).toFixed(1) : 0}%

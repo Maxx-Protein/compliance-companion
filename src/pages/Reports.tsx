@@ -64,6 +64,13 @@ const Reports = () => {
       supabase.from("gst_filings").select("*").eq("user_id", user?.id),
     ]);
 
+    if (invoicesRes.error) {
+      console.error(invoicesRes.error);
+    }
+    if (filingsRes.error) {
+      console.error(filingsRes.error);
+    }
+
     if (invoicesRes.data) setInvoices(invoicesRes.data);
     if (filingsRes.data) setFilings(filingsRes.data);
   };
