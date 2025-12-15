@@ -1,3 +1,4 @@
+import type React from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Trash2, Edit, Package as PackageIcon } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -140,6 +141,146 @@ const Products = () => {
     }
   };
 
+  const productsCsvHeaders = [
+    "product_name",
+    "hsn_code",
+    "gst_rate",
+    "unit_price",
+    "category",
+    "sku",
+    "bis_certified",
+    "bis_certificate_number",
+    "bis_expiry_date",
+  ];
+
+  const exportProductsCsv = () => {
+    if (!products.length) {
+      toast.error("No products to export");
+      return;
+    }
+
+    const rows = products.map((p) => [
+      p.product_name ?? "",
+      p.hsn_code ?? "",
+      p.gst_rate ?? "",
+      p.unit_price ?? "",
+      p.category ?? "",
+      p.sku ?? "",
+      String(!!p.bis_certified),
+      p.bis_certificate_number ?? "",
+      p.bis_expiry_date ?? "",
+    ]);
+
+    const csv = [productsCsvHeaders.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "products.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const productsFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleProductsFileClick = () => {
+    productsFileInputRef.current?.click();
+  };
+
+  const handleImportProductsCsv = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const text = String(reader.result ?? "");
+        const lines = text
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter(Boolean);
+
+        if (!lines.length) {
+          toast.error("CSV file is empty");
+          return;
+        }
+
+        const header = lines[0]
+          .split(",")
+          .map((h) => h.trim().toLowerCase());
+
+        const required = ["product_name", "hsn_code", "gst_rate"];
+        const missing = required.filter((h) => !header.includes(h));
+        if (missing.length) {
+          toast.error(
+            `Missing required columns: ${missing.join(", ")}`
+          );
+          return;
+        }
+
+        const get = (cols: string[], name: string, values: string[]) => {
+          const idx = cols.indexOf(name);
+          return idx >= 0 ? values[idx]?.trim() ?? "" : "";
+        };
+
+        const records = lines.slice(1).map((line) => {
+          const values = line.split(",");
+          return {
+            user_id: user?.id,
+            product_name: get(header, "product_name", values),
+            hsn_code: get(header, "hsn_code", values),
+            gst_rate: get(header, "gst_rate", values) || "18%",
+            unit_price: (() => {
+              const raw = get(header, "unit_price", values);
+              return raw ? Number(raw) : null;
+            })(),
+            category: get(header, "category", values) || null,
+            sku: get(header, "sku", values) || null,
+            bis_certified: get(header, "bis_certified", values)
+              .toLowerCase()
+              .startsWith("t"),
+            bis_certificate_number:
+              get(header, "bis_certificate_number", values) || null,
+            bis_expiry_date:
+              get(header, "bis_expiry_date", values) || null,
+          };
+        });
+
+        const validRecords = records.filter(
+          (r) => r.product_name && r.hsn_code
+        );
+
+        if (!validRecords.length) {
+          toast.error("No valid rows found in CSV");
+          return;
+        }
+
+        const { error } = await supabase
+          .from("products")
+          .insert(validRecords);
+
+        if (error) {
+          console.error(error);
+          toast.error("Failed to import products");
+        } else {
+          toast.success("Products imported successfully");
+          fetchProducts();
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Error reading CSV file");
+      } finally {
+        event.target.value = "";
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -147,18 +288,40 @@ const Products = () => {
           <h1 className="text-3xl font-bold mb-2">Products</h1>
           <p className="text-muted-foreground">Manage your product HSN codes and GST rates</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary-hover" onClick={() => openDialog()}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Product
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
-            </DialogHeader>
-            
+        <div className="flex items-center gap-2">
+          <input
+            ref={productsFileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleImportProductsCsv}
+          />
+          <Button variant="outline" onClick={exportProductsCsv}>
+            Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleProductsFileClick}
+          >
+            Import CSV
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                className="bg-primary hover:bg-primary-hover"
+                onClick={() => openDialog()}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Product
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingProduct ? "Edit Product" : "Add New Product"}
+                </DialogTitle>
+              </DialogHeader>
+
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">

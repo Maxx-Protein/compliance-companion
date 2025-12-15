@@ -39,7 +39,8 @@ const Invoices = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [sellerState, setSellerState] = useState("");
   const [loading, setLoading] = useState(false);
-  
+  const invoicesFileInputRef = useRef<HTMLInputElement | null>(null);
+
   // Invoice form state
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -216,14 +217,16 @@ const Invoices = () => {
     setCustomerName("");
     setCustomerGstin("");
     setCustomerState("");
-    setItems([{
-      product_name: "",
-      hsn_code: "",
-      quantity: 1,
-      rate: 0,
-      gst_rate: "18%",
-      amount: 0
-    }]);
+    setItems([
+      {
+        product_name: "",
+        hsn_code: "",
+        quantity: 1,
+        rate: 0,
+        gst_rate: "18%",
+        amount: 0,
+      },
+    ]);
     setDiscount(0);
     setNotes("");
     generateInvoiceNumber();
@@ -231,12 +234,186 @@ const Invoices = () => {
 
   const totals = calculateTotals();
 
+  const invoicesCsvHeaders = [
+    "invoice_number",
+    "customer_name",
+    "customer_gstin",
+    "customer_state",
+    "invoice_date",
+    "subtotal",
+    "sgst_amount",
+    "cgst_amount",
+    "igst_amount",
+    "discount_amount",
+    "tcs_deducted",
+    "total_amount",
+    "place_of_supply",
+    "notes",
+  ];
+
+  const exportInvoicesCsv = () => {
+    if (!invoices.length) {
+      toast.error("No invoices to export");
+      return;
+    }
+
+    const rows = invoices.map((inv) => [
+      inv.invoice_number ?? "",
+      inv.customer_name ?? "",
+      inv.customer_gstin ?? "",
+      inv.customer_state ?? "",
+      inv.invoice_date ?? "",
+      inv.subtotal ?? "",
+      inv.sgst_amount ?? "",
+      inv.cgst_amount ?? "",
+      inv.igst_amount ?? "",
+      inv.discount_amount ?? "",
+      inv.tcs_deducted ?? "",
+      inv.total_amount ?? "",
+      inv.place_of_supply ?? "",
+      (inv.notes ?? "").toString().replace(/\n/g, " "),
+    ]);
+
+    const csv = [
+      invoicesCsvHeaders.join(","),
+      ...rows.map((r) => r.join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "invoices.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleInvoicesFileClick = () => {
+    invoicesFileInputRef.current?.click();
+  };
+
+  const handleImportInvoicesCsv = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const text = String(reader.result ?? "");
+        const lines = text
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter(Boolean);
+
+        if (!lines.length) {
+          toast.error("CSV file is empty");
+          return;
+        }
+
+        const header = lines[0]
+          .split(",")
+          .map((h) => h.trim().toLowerCase());
+
+        const required = ["invoice_number", "customer_name", "customer_state"];
+        const missing = required.filter((h) => !header.includes(h));
+        if (missing.length) {
+          toast.error(
+            `Missing required columns: ${missing.join(", ")}`
+          );
+          return;
+        }
+
+        const get = (cols: string[], name: string, values: string[]) => {
+          const idx = cols.indexOf(name);
+          return idx >= 0 ? values[idx]?.trim() ?? "" : "";
+        };
+
+        const records = lines.slice(1).map((line) => {
+          const values = line.split(",");
+          const customer_state =
+            get(header, "customer_state", values) || "";
+          const place_of_supply =
+            get(header, "place_of_supply", values) || customer_state;
+
+          return {
+            user_id: user?.id,
+            invoice_number: get(header, "invoice_number", values),
+            customer_name: get(header, "customer_name", values),
+            customer_gstin: get(header, "customer_gstin", values) || null,
+            customer_state,
+            invoice_date: get(header, "invoice_date", values) || undefined,
+            subtotal: Number(
+              get(header, "subtotal", values) || "0"
+            ),
+            sgst_amount: Number(
+              get(header, "sgst_amount", values) || "0"
+            ),
+            cgst_amount: Number(
+              get(header, "cgst_amount", values) || "0"
+            ),
+            igst_amount: Number(
+              get(header, "igst_amount", values) || "0"
+            ),
+            discount_amount: Number(
+              get(header, "discount_amount", values) || "0"
+            ),
+            tcs_deducted: Number(
+              get(header, "tcs_deducted", values) || "0"
+            ),
+            total_amount: Number(
+              get(header, "total_amount", values) || "0"
+            ),
+            place_of_supply,
+            notes: get(header, "notes", values) || null,
+            invoice_status: "issued",
+            payment_status: "unpaid",
+          };
+        });
+
+        const validRecords = records.filter(
+          (r) => r.invoice_number && r.customer_name && r.customer_state
+        );
+
+        if (!validRecords.length) {
+          toast.error("No valid rows found in CSV");
+          return;
+        }
+
+        const { error } = await supabase
+          .from("invoices")
+          .insert(validRecords);
+
+        if (error) {
+          console.error(error);
+          toast.error("Failed to import invoices");
+        } else {
+          toast.success("Invoices imported successfully");
+          fetchInvoices();
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Error reading CSV file");
+      } finally {
+        event.target.value = "";
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
   const handleDownloadPdf = (invoice: any) => {
     try {
       const doc = new jsPDF();
 
       const items = (invoice.items || []) as any[];
-      const isInterstate = invoice.place_of_supply && sellerState && invoice.place_of_supply !== sellerState;
+      const isInterstate =
+        invoice.place_of_supply &&
+        sellerState &&
+        invoice.place_of_supply !== sellerState;
       const subtotal = Number(invoice.subtotal ?? 0);
       const sgst = Number(invoice.sgst_amount ?? 0);
       const cgst = Number(invoice.cgst_amount ?? 0);
