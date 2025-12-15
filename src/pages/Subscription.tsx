@@ -17,11 +17,18 @@ const Subscription = () => {
   }, [user]);
 
   const fetchProfile = async () => {
-    const { data } = await supabase
+    if (!user) return;
+
+    const { data, error } = await supabase
       .from("seller_profiles")
       .select("*")
-      .eq("user_id", user?.id)
+      .eq("user_id", user.id)
       .single();
+    
+    if (error) {
+      console.error(error);
+      return;
+    }
     
     if (data) setSellerProfile(data);
   };
