@@ -17,6 +17,7 @@ const Compliance = () => {
   const [items, setItems] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
 
   // Form state
   const [complianceItem, setComplianceItem] = useState("");
@@ -264,7 +265,9 @@ const Compliance = () => {
       <Card className="p-6">
         <h2 className="text-lg font-semibold mb-4">Compliance Checklist</h2>
         
-        {items.length === 0 ? (
+        {listLoading ? (
+          <p className="text-sm text-muted-foreground">Loading compliance items…</p>
+        ) : items.length === 0 ? (
           <div className="text-center py-12">
             <CheckCircle2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-4">No compliance items yet</p>

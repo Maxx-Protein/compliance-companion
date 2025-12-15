@@ -157,6 +157,15 @@ const GSTFilings = () => {
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
         </TabsList>
 
+        <Card className="p-4 bg-muted/40 border-dashed border-border/60">
+          <h2 className="text-sm font-semibold mb-1">How this assistant works</h2>
+          <p className="text-xs text-muted-foreground">
+            GSTR-1 uses your issued invoices. GSTR-3B and GSTR-9 use monthly
+            filing records. Always cross-check these summaries with your
+            marketplace and accounting exports before submitting returns.
+          </p>
+        </Card>
+
         <TabsContent value="overview" className="space-y-4">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Card className="p-6">
