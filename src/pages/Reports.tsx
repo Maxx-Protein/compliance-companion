@@ -2,7 +2,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Download, FileText, TrendingUp } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Download, FileText, TrendingUp, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +16,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { jsPDF } from "jspdf";
 
 const Reports = () => {
   const { user } = useAuth();
@@ -22,6 +24,8 @@ const Reports = () => {
   const [selectedYear, setSelectedYear] = useState("2025");
   const [invoices, setInvoices] = useState<any[]>([]);
   const [filings, setFilings] = useState<any[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
+  const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -137,7 +141,7 @@ const Reports = () => {
     if (!list.length) {
       return;
     }
-
+  
     const headers = [
       "invoice_number",
       "invoice_date",
@@ -146,7 +150,7 @@ const Reports = () => {
       "gst_amount",
       "tcs_deducted",
     ];
-
+  
     const rows = list.map((inv) => {
       const gstAmount =
         Number(inv.sgst_amount || 0) +
@@ -161,7 +165,7 @@ const Reports = () => {
         Number(inv.tcs_deducted || 0).toString(),
       ];
     });
-
+  
     const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -172,6 +176,119 @@ const Reports = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleOpenInvoiceDetails = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setIsInvoiceDialogOpen(true);
+  };
+
+  const handleDownloadInvoicePdf = (invoice: any) => {
+    try {
+      const doc = new jsPDF();
+      const items = (invoice.items || []) as any[];
+      const subtotal = Number(invoice.subtotal ?? 0);
+      const sgst = Number(invoice.sgst_amount ?? 0);
+      const cgst = Number(invoice.cgst_amount ?? 0);
+      const igst = Number(invoice.igst_amount ?? 0);
+      const discountAmount = Number(invoice.discount_amount ?? 0);
+      const tcs = Number(invoice.tcs_deducted ?? 0);
+      const totalAmount = Number(invoice.total_amount ?? 0);
+      const isInterstate = igst > 0;
+
+      let y = 10;
+      doc.setFontSize(16);
+      doc.text("Invoice", 10, y);
+      y += 8;
+
+      doc.setFontSize(11);
+      doc.text(`Invoice No: ${invoice.invoice_number}`, 10, y);
+      y += 6;
+      doc.text(
+        `Date: ${invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString() : "-"}`,
+        10,
+        y
+      );
+      y += 6;
+
+      doc.text(`Bill To: ${invoice.customer_name}`, 10, y);
+      y += 6;
+      if (invoice.customer_gstin) {
+        doc.text(`GSTIN: ${invoice.customer_gstin}`, 10, y);
+        y += 6;
+      }
+      if (invoice.customer_state) {
+        doc.text(`State: ${invoice.customer_state}`, 10, y);
+        y += 8;
+      }
+
+      doc.setFontSize(12);
+      doc.text("Items", 10, y);
+      y += 6;
+
+      doc.setFontSize(10);
+      doc.text("Product", 10, y);
+      doc.text("HSN", 60, y);
+      doc.text("Qty", 90, y);
+      doc.text("Rate", 110, y);
+      doc.text("Amount", 140, y);
+      y += 4;
+      doc.line(10, y, 200, y);
+      y += 4;
+
+      items.forEach((item) => {
+        const name = item.product_name || "-";
+        const hsn = item.hsn_code || "-";
+        const qty = Number(item.quantity ?? 0);
+        const rate = Number(item.rate ?? 0);
+        const amount = Number(item.amount ?? qty * rate);
+
+        doc.text(String(name).slice(0, 30), 10, y);
+        doc.text(String(hsn), 60, y);
+        doc.text(String(qty), 90, y, { align: "right" });
+        doc.text(String(rate.toFixed(2)), 120, y, { align: "right" });
+        doc.text(String(amount.toFixed(2)), 160, y, { align: "right" });
+        y += 6;
+      });
+
+      if (y > 240) {
+        doc.addPage();
+        y = 20;
+      }
+
+      y += 4;
+      doc.line(10, y, 200, y);
+      y += 6;
+
+      doc.setFontSize(11);
+      doc.text(`Subtotal: ₹${subtotal.toFixed(2)}`, 120, y);
+      y += 5;
+
+      if (isInterstate) {
+        doc.text(`IGST: ₹${igst.toFixed(2)}`, 120, y);
+        y += 5;
+      } else {
+        doc.text(`CGST: ₹${cgst.toFixed(2)}`, 120, y);
+        y += 5;
+        doc.text(`SGST: ₹${sgst.toFixed(2)}`, 120, y);
+        y += 5;
+      }
+
+      if (discountAmount > 0) {
+        doc.text(`Discount: -₹${discountAmount.toFixed(2)}`, 120, y);
+        y += 5;
+      }
+
+      doc.text(`TCS: ₹${tcs.toFixed(2)}`, 120, y);
+      y += 5;
+
+      doc.setFontSize(12);
+      doc.text(`Total: ₹${totalAmount.toFixed(2)}`, 120, y);
+
+      doc.save(`${invoice.invoice_number || "invoice"}.pdf`);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
@@ -375,6 +492,166 @@ const Reports = () => {
                 <Bar dataKey="gst" name="GST" fill="hsl(var(--accent))" />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-4">Invoices in selected period</h2>
+        {filteredInvoices.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No invoices match the selected filters.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {filteredInvoices.map((inv) => {
+              const gstAmount =
+                Number(inv.sgst_amount || 0) +
+                Number(inv.cgst_amount || 0) +
+                Number(inv.igst_amount || 0);
+              const tcsAmount = Number(inv.tcs_deducted || 0);
+              return (
+                <div
+                  key={inv.id}
+                  className="flex flex-col gap-2 rounded-lg border bg-card px-3 py-2 text-sm md:flex-row md:items-center md:justify-between"
+                >
+                  <div className="flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">
+                        {inv.invoice_number}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {inv.invoice_date
+                          ? new Date(inv.invoice_date).toLocaleDateString()
+                          : "-"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {inv.customer_name} · Sales ₹{Number(inv.total_amount || 0).toFixed(2)} · GST ₹
+                      {gstAmount.toFixed(2)} · TCS ₹{tcsAmount.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 pt-1 md:pt-0">
+                    <Dialog
+                      open={isInvoiceDialogOpen && selectedInvoice?.id === inv.id}
+                      onOpenChange={(open) => {
+                        if (!open) {
+                          setIsInvoiceDialogOpen(false);
+                          setSelectedInvoice(null);
+                        } else {
+                          handleOpenInvoiceDetails(inv);
+                        }
+                      }}
+                    >
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex-1 md:flex-none">
+                          <Eye className="mr-1 h-3 w-3" />
+                          Details
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>
+                            Invoice {selectedInvoice?.invoice_number}
+                          </DialogTitle>
+                        </DialogHeader>
+                        {selectedInvoice && (
+                          <div className="space-y-4 text-sm">
+                            <div className="space-y-1">
+                              <p className="text-muted-foreground">
+                                {selectedInvoice.invoice_date
+                                  ? new Date(
+                                      selectedInvoice.invoice_date
+                                    ).toLocaleDateString()
+                                  : "-"}
+                              </p>
+                              <p>
+                                <span className="font-medium">Customer:</span>{" "}
+                                {selectedInvoice.customer_name}
+                              </p>
+                              {selectedInvoice.customer_gstin && (
+                                <p>
+                                  <span className="font-medium">GSTIN:</span>{" "}
+                                  {selectedInvoice.customer_gstin}
+                                </p>
+                              )}
+                            </div>
+
+                            <div>
+                              <h3 className="mb-2 text-sm font-medium">Line items</h3>
+                              <div className="space-y-2">
+                                {(selectedInvoice.items || []).map((item: any, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    className="flex flex-col justify-between rounded-md border bg-muted/40 px-2 py-1.5 md:flex-row md:items-center"
+                                  >
+                                    <div>
+                                      <p className="font-medium text-xs md:text-sm">
+                                        {item.product_name || "Item"}
+                                      </p>
+                                      <p className="text-[11px] text-muted-foreground">
+                                        HSN {item.hsn_code || "-"} · Qty {item.quantity} · GST {item.gst_rate}
+                                      </p>
+                                    </div>
+                                    <div className="mt-1 text-right text-xs md:text-sm">
+                                      <p>₹{Number(item.amount || 0).toFixed(2)}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1 text-sm">
+                              <p>
+                                <span className="font-medium">Subtotal:</span> ₹
+                                {Number(selectedInvoice.subtotal || 0).toFixed(2)}
+                              </p>
+                              <p>
+                                <span className="font-medium">GST total:</span> ₹
+                                {(
+                                  Number(selectedInvoice.sgst_amount || 0) +
+                                  Number(selectedInvoice.cgst_amount || 0) +
+                                  Number(selectedInvoice.igst_amount || 0)
+                                ).toFixed(2)}
+                              </p>
+                              <p>
+                                <span className="font-medium">TCS:</span> ₹
+                                {Number(selectedInvoice.tcs_deducted || 0).toFixed(2)}
+                              </p>
+                              <p>
+                                <span className="font-medium">Total:</span> ₹
+                                {Number(selectedInvoice.total_amount || 0).toFixed(2)}
+                              </p>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  selectedInvoice && handleDownloadInvoicePdf(selectedInvoice)
+                                }
+                              >
+                                <Download className="mr-1 h-3 w-3" /> PDF
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 md:flex-none"
+                      onClick={() => handleDownloadInvoicePdf(inv)}
+                    >
+                      <Download className="mr-1 h-3 w-3" />
+                      PDF
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </Card>
