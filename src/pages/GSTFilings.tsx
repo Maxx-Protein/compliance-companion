@@ -197,8 +197,15 @@ const GSTFilings = () => {
         </TabsContent>
 
         <TabsContent value="gstr1" className="space-y-4">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">GSTR-1 Summary</h2>
+          <Card className="p-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold mb-1">GSTR-1 Summary</h2>
+              <p className="text-sm text-muted-foreground">
+                Step 1: Confirm all outward supplies are invoiced in ComplianceHub.
+                Step 2: Compare these totals with your marketplace and accounting
+                reports.
+              </p>
+            </div>
             {isLoading ? (
               <p className="text-muted-foreground text-sm">Loading data…</p>
             ) : !invoices.length ? (
@@ -237,8 +244,14 @@ const GSTFilings = () => {
         </TabsContent>
 
         <TabsContent value="gstr3b" className="space-y-4">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">GSTR-3B Liability</h2>
+          <Card className="p-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold mb-1">GSTR-3B Liability</h2>
+              <p className="text-sm text-muted-foreground">
+                Step 1: Review GST liability vs ITC claimed. Step 2: Confirm the
+                net payable matches what you will pay to the department.
+              </p>
+            </div>
             {isLoading ? (
               <p className="text-muted-foreground text-sm">Loading data…</p>
             ) : !filings.length ? (
@@ -247,35 +260,56 @@ const GSTFilings = () => {
                 ITC will appear here.
               </p>
             ) : (
-              <div className="grid md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">
-                    GST liability
-                  </p>
-                  <p className="text-2xl font-semibold">
-                    ₹{gstr3bSummary.gstLiability.toFixed(2)}
-                  </p>
+              <>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      GST liability
+                    </p>
+                    <p className="text-2xl font-semibold">
+                      ₹{gstr3bSummary.gstLiability.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      ITC claimed
+                    </p>
+                    <p className="text-2xl font-semibold">
+                      ₹{gstr3bSummary.itcClaimed.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      Net payable
+                    </p>
+                    <p className="text-2xl font-semibold">
+                      ₹{gstr3bSummary.netPayable.toFixed(2)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">ITC claimed</p>
-                  <p className="text-2xl font-semibold">
-                    ₹{gstr3bSummary.itcClaimed.toFixed(2)}
+                {Math.abs(
+                  gstr3bSummary.gstLiability -
+                    (gstr3bSummary.itcClaimed + gstr3bSummary.netPayable),
+                ) > 1 && (
+                  <p className="text-xs text-warning mt-2">
+                    * Warning: Liability - ITC does not roughly equal net payable.
+                    Recheck your inputs before filing.
                   </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Net payable</p>
-                  <p className="text-2xl font-semibold">
-                    ₹{gstr3bSummary.netPayable.toFixed(2)}
-                  </p>
-                </div>
-              </div>
+                )}
+              </>
             )}
           </Card>
         </TabsContent>
 
         <TabsContent value="gstr9" className="space-y-4">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4">GSTR-9 Annual View</h2>
+          <Card className="p-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold mb-1">GSTR-9 Annual View</h2>
+              <p className="text-sm text-muted-foreground">
+                Step 1: Confirm annual totals for sales, purchases, GST and TCS.
+                Step 2: Match these values with your books before filing GSTR-9.
+              </p>
+            </div>
             {isLoading ? (
               <p className="text-muted-foreground text-sm">Loading data…</p>
             ) : !filings.length ? (
