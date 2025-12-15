@@ -79,6 +79,7 @@ const Invoices = () => {
   }]);
   const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState("");
+  const [listLoading, setListLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -90,11 +91,16 @@ const Invoices = () => {
   }, [user]);
 
   const fetchSellerProfile = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("seller_profiles")
       .select("registered_address")
       .eq("user_id", user?.id)
       .single();
+    
+    if (error) {
+      console.error(error);
+      return;
+    }
     
     if (data?.registered_address) {
       const stateMatch = INDIAN_STATES.find(state => 
@@ -105,31 +111,49 @@ const Invoices = () => {
   };
 
   const generateInvoiceNumber = async () => {
-    const { count } = await supabase
+    const { count, error } = await supabase
       .from("invoices")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user?.id);
+    
+    if (error) {
+      console.error(error);
+      return;
+    }
     
     setInvoiceNumber(`INV-${String((count || 0) + 1).padStart(4, "0")}`);
   };
 
   const fetchProducts = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("products")
       .select("*")
       .eq("user_id", user?.id);
+    
+    if (error) {
+      toast.error("Failed to load products");
+      return;
+    }
     
     if (data) setProducts(data);
   };
 
   const fetchInvoices = async () => {
-    const { data } = await supabase
+    setListLoading(true);
+    const { data, error } = await supabase
       .from("invoices")
       .select("*")
       .eq("user_id", user?.id)
       .order("created_at", { ascending: false });
     
+    if (error) {
+      toast.error("Failed to load invoices");
+      setListLoading(false);
+      return;
+    }
+    
     if (data) setInvoices(data);
+    setListLoading(false);
   };
 
   const addItem = () => {

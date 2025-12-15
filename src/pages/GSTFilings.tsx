@@ -6,6 +6,7 @@ import { CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const GSTFilings = () => {
   const { user } = useAuth();
@@ -30,7 +31,13 @@ const GSTFilings = () => {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
+    if (error) {
+      toast.error("Failed to load GST filings");
+      setLoadingFilings(false);
+      return;
+    }
+
+    if (data) {
       setFilings(data);
     }
 
@@ -47,7 +54,13 @@ const GSTFilings = () => {
       .eq("user_id", user.id)
       .order("invoice_date", { ascending: true });
 
-    if (!error && data) {
+    if (error) {
+      toast.error("Failed to load invoices for filings");
+      setLoadingInvoices(false);
+      return;
+    }
+
+    if (data) {
       setInvoices(data);
     }
 
