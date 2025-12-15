@@ -13,20 +13,20 @@ const Dashboard = () => {
         "Welcome to your dashboard. This overview shows key GST, sales and compliance metrics.",
     },
     {
-      target: "[data-tour="dashboard-stats"]",
+      target: '[data-tour="dashboard-stats"]',
       content: "These cards summarise sales, GST and product counts at a glance.",
     },
     {
-      target: "[data-tour="dashboard-actions"]",
+      target: '[data-tour="dashboard-actions"]',
       content:
         "Use Quick Actions to jump straight into creating invoices, filing returns or adding products.",
     },
     {
-      target: "[data-tour="dashboard-alerts"]",
+      target: '[data-tour="dashboard-alerts"]',
       content:
         "Alerts highlight upcoming GST deadlines and actions that may need attention.",
     },
-  ] as const;
+  ];
 
   return (
     <div className="space-y-6">
