@@ -24,6 +24,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { removeBackground, loadImage } from "@/lib/imageBackground";
 
 const GST_RATES = ["0%", "5%", "12%", "18%", "28%"];
 
@@ -44,6 +45,9 @@ const Products = () => {
   const [bisCertified, setBisCertified] = useState(false);
   const [bisCertNumber, setBisCertNumber] = useState("");
   const [bisExpiryDate, setBisExpiryDate] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+
 
   const productsFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -73,6 +77,7 @@ const Products = () => {
     setBisCertified(false);
     setBisCertNumber("");
     setBisExpiryDate("");
+    setImageUrl("");
     setEditingProduct(null);
   };
 
@@ -88,6 +93,7 @@ const Products = () => {
       setBisCertified(product.bis_certified || false);
       setBisCertNumber(product.bis_certificate_number || "");
       setBisExpiryDate(product.bis_expiry_date || "");
+      setImageUrl(product.image_url || "");
     } else {
       resetForm();
     }
@@ -113,6 +119,7 @@ const Products = () => {
       bis_certified: bisCertified,
       bis_certificate_number: bisCertified ? bisCertNumber : null,
       bis_expiry_date: bisCertified && bisExpiryDate ? bisExpiryDate : null,
+      image_url: imageUrl || null,
     };
 
     let error;
@@ -401,6 +408,70 @@ const Products = () => {
                       placeholder="SKU-001"
                     />
                   </div>
+
+                  <div className="col-span-2">
+                    <Label>Product Image (optional)</Label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (
+                        event: React.ChangeEvent<HTMLInputElement>
+                      ) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+
+                        try {
+                          setImageUploading(true);
+                          const img = await loadImage(file);
+                          const processed = await removeBackground(img);
+
+                          const fileExt = "png";
+                          const fileName = `${Date.now()}.${fileExt}`;
+                          const filePath = `${user?.id}/${fileName}`;
+
+                          const { error: uploadError } = await supabase.storage
+                            .from("product-images")
+                            .upload(filePath, processed, {
+                              contentType: "image/png",
+                              upsert: true,
+                            } as any);
+
+                          if (uploadError) {
+                            console.error(uploadError);
+                            toast.error("Failed to upload image");
+                          } else {
+                            const { data } = supabase.storage
+                              .from("product-images")
+                              .getPublicUrl(filePath);
+                            setImageUrl(data.publicUrl);
+                          }
+                        } catch (err) {
+                          console.error(err);
+                          toast.error("Error processing image");
+                        } finally {
+                          setImageUploading(false);
+                          event.target.value = "";
+                        }
+                      }}
+                    />
+                    {imageUrl && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <img
+                          src={imageUrl}
+                          alt={productName || "Product image"}
+                          className="h-16 w-16 rounded-md object-cover border border-border/60"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          Background removed preview
+                        </span>
+                      </div>
+                    )}
+                    {imageUploading && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Processing image...
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="border-t pt-4">
@@ -450,7 +521,7 @@ const Products = () => {
                   <Button
                     className="flex-1 bg-primary hover:bg-primary-hover"
                     onClick={saveProduct}
-                    disabled={loading}
+                    disabled={loading || imageUploading}
                   >
                     {loading
                       ? "Saving..."
@@ -484,23 +555,32 @@ const Products = () => {
                 key={product.id}
                 className="flex items-start justify-between p-4 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors"
               >
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold">{product.product_name}</h3>
-                    <Badge>{product.gst_rate} GST</Badge>
-                    {product.bis_certified && (
-                      <Badge variant="outline">BIS Certified</Badge>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
-                    <div>HSN: {product.hsn_code}</div>
-                    {product.unit_price && (
-                      <div>Price: ₹{product.unit_price}</div>
-                    )}
-                    {product.category && (
-                      <div>Category: {product.category}</div>
-                    )}
-                    {product.sku && <div>SKU: {product.sku}</div>}
+                <div className="flex items-start gap-3 flex-1">
+                  {product.image_url && (
+                    <img
+                      src={product.image_url}
+                      alt={product.product_name}
+                      className="h-14 w-14 rounded-md object-cover border border-border/60"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="font-semibold">{product.product_name}</h3>
+                      <Badge>{product.gst_rate} GST</Badge>
+                      {product.bis_certified && (
+                        <Badge variant="outline">BIS Certified</Badge>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
+                      <div>HSN: {product.hsn_code}</div>
+                      {product.unit_price && (
+                        <div>Price: ₹{product.unit_price}</div>
+                      )}
+                      {product.category && (
+                        <div>Category: {product.category}</div>
+                      )}
+                      {product.sku && <div>SKU: {product.sku}</div>}
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2">

@@ -132,6 +132,48 @@ const Reports = () => {
     a.month.localeCompare(b.month)
   );
 
+  const exportFilteredAnalyticsCsv = () => {
+    const list = filteredInvoices;
+    if (!list.length) {
+      return;
+    }
+
+    const headers = [
+      "invoice_number",
+      "invoice_date",
+      "customer_name",
+      "total_amount",
+      "gst_amount",
+      "tcs_deducted",
+    ];
+
+    const rows = list.map((inv) => {
+      const gstAmount =
+        Number(inv.sgst_amount || 0) +
+        Number(inv.cgst_amount || 0) +
+        Number(inv.igst_amount || 0);
+      return [
+        inv.invoice_number ?? "",
+        inv.invoice_date ?? "",
+        inv.customer_name ?? "",
+        Number(inv.total_amount || 0).toString(),
+        gstAmount.toString(),
+        Number(inv.tcs_deducted || 0).toString(),
+      ];
+    });
+
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "analytics.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -139,73 +181,77 @@ const Reports = () => {
         <p className="text-muted-foreground">Generate tax and compliance reports</p>
       </div>
 
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Report Generator</h2>
-        
-        <div className="grid md:grid-cols-3 gap-4 mb-6">
-          <div>
-            <Label>Report Type</Label>
-            <Select defaultValue="monthly">
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly">Monthly Tax Summary</SelectItem>
-                <SelectItem value="annual">Annual Tax Report</SelectItem>
-                <SelectItem value="gst">GST Liability Report</SelectItem>
-                <SelectItem value="product">Product Performance</SelectItem>
-                <SelectItem value="compliance">Compliance Report</SelectItem>
-              </SelectContent>
-            </Select>
+      <Card className="p-6 space-y-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="grid md:grid-cols-3 gap-4 flex-1">
+            <div>
+              <Label>Report Type</Label>
+              <Select defaultValue="monthly">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly Tax Summary</SelectItem>
+                  <SelectItem value="annual">Annual Tax Report</SelectItem>
+                  <SelectItem value="gst">GST Liability Report</SelectItem>
+                  <SelectItem value="product">Product Performance</SelectItem>
+                  <SelectItem value="compliance">Compliance Report</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Month</Label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="01">January</SelectItem>
+                  <SelectItem value="02">February</SelectItem>
+                  <SelectItem value="03">March</SelectItem>
+                  <SelectItem value="04">April</SelectItem>
+                  <SelectItem value="05">May</SelectItem>
+                  <SelectItem value="06">June</SelectItem>
+                  <SelectItem value="07">July</SelectItem>
+                  <SelectItem value="08">August</SelectItem>
+                  <SelectItem value="09">September</SelectItem>
+                  <SelectItem value="10">October</SelectItem>
+                  <SelectItem value="11">November</SelectItem>
+                  <SelectItem value="12">December</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Year</Label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2025">2025</SelectItem>
+                  <SelectItem value="2024">2024</SelectItem>
+                  <SelectItem value="2023">2023</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div>
-            <Label>Month</Label>
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select month" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="01">January</SelectItem>
-                <SelectItem value="02">February</SelectItem>
-                <SelectItem value="03">March</SelectItem>
-                <SelectItem value="04">April</SelectItem>
-                <SelectItem value="05">May</SelectItem>
-                <SelectItem value="06">June</SelectItem>
-                <SelectItem value="07">July</SelectItem>
-                <SelectItem value="08">August</SelectItem>
-                <SelectItem value="09">September</SelectItem>
-                <SelectItem value="10">October</SelectItem>
-                <SelectItem value="11">November</SelectItem>
-                <SelectItem value="12">December</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button className="flex-1 sm:flex-none bg-primary hover:bg-primary-hover">
+              <Download className="w-4 h-4 mr-2" />
+              Download PDF
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              onClick={exportFilteredAnalyticsCsv}
+           >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
-
-          <div>
-            <Label>Year</Label>
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="2025">2025</SelectItem>
-                <SelectItem value="2024">2024</SelectItem>
-                <SelectItem value="2023">2023</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <Button className="flex-1 bg-primary hover:bg-primary-hover">
-            <Download className="w-4 h-4 mr-2" />
-            Download PDF
-          </Button>
-          <Button variant="outline" className="flex-1">
-            <Download className="w-4 h-4 mr-2" />
-            Download Excel
-          </Button>
         </div>
       </Card>
 
@@ -248,6 +294,61 @@ const Reports = () => {
           <p className="text-xs text-muted-foreground mt-1">Per invoice</p>
         </Card>
       </div>
+
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-4">Revenue, GST &amp; TCS trend</h2>
+        <div className="h-64 md:h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyTrendData} margin={{ left: 8, right: 8 }}>
+              <XAxis dataKey="month" fontSize={12} />
+              <YAxis fontSize={12} />
+              <Tooltip
+                formatter={(value: any, name: string) => [
+                  `₹${Number(value).toFixed(2)}`,
+                  name,
+                ]}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="sales" name="Sales" fill="hsl(var(--primary))" />
+              <Bar dataKey="gst" name="GST" fill="hsl(var(--accent))" />
+              <Bar dataKey="tcs" name="TCS" fill="hsl(var(--secondary))" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold mb-4">
+          Product performance (selected period)
+        </h2>
+        {productPerformance.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No product-level data for the selected period.
+          </p>
+        ) : (
+          <div className="h-64 md:h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={productPerformance}
+                layout="vertical"
+                margin={{ left: 80, right: 16 }}
+              >
+                <XAxis type="number" fontSize={12} />
+                <YAxis dataKey="name" type="category" width={100} fontSize={12} />
+                <Tooltip
+                  formatter={(value: any, name: string) => [
+                    `₹${Number(value).toFixed(2)}`,
+                    name,
+                  ]}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="sales" name="Sales" fill="hsl(var(--primary))" />
+                <Bar dataKey="gst" name="GST" fill="hsl(var(--accent))" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
 
       <Card className="p-6">
         <h2 className="text-lg font-semibold mb-4">Quick Insights</h2>
