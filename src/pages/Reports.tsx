@@ -255,6 +255,35 @@ const Reports = () => {
         </div>
       </Card>
 
+      <Card className="p-4 md:p-5 bg-muted/40 border-dashed">
+        <h2 className="text-sm font-medium mb-2 flex items-center gap-2">
+          How these analytics are calculated
+        </h2>
+        <div className="space-y-2 text-xs md:text-sm text-muted-foreground">
+          <p>
+            <span className="font-medium">GST</span> = sum of CGST, SGST and IGST amounts on your
+            filtered invoices. <span className="font-medium">TCS</span> is taken from the
+            <code className="mx-1 rounded bg-background px-1 py-0.5">tcs_deducted</code> field
+            on each invoice.
+          </p>
+          <p>
+            <span className="font-medium">Product performance</span> uses the items stored on each
+            invoice: sales are the item amounts, and GST is estimated from the item GST rate
+            (for example, 18% of line amount for an 18% slab).
+          </p>
+          <p>
+            The <span className="font-medium">CSV export</span> includes one row per filtered
+            invoice with these columns:
+            <code className="mx-1 rounded bg-background px-1 py-0.5">invoice_number</code>,
+            <code className="mx-1 rounded bg-background px-1 py-0.5">invoice_date</code>,
+            <code className="mx-1 rounded bg-background px-1 py-0.5">customer_name</code>,
+            <code className="mx-1 rounded bg-background px-1 py-0.5">total_amount</code>,
+            <code className="mx-1 rounded bg-background px-1 py-0.5">gst_amount</code>, and
+            <code className="mx-1 rounded bg-background px-1 py-0.5">tcs_deducted</code>.
+          </p>
+        </div>
+      </Card>
+
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-6">
           <div className="flex items-center justify-between mb-2">
