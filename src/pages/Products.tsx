@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageTour } from "@/components/PageTour";
 import {
   Select,
   SelectContent,
@@ -35,7 +36,29 @@ const Products = () => {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  // Form state
+  const tourSteps = [
+    {
+      target: "body",
+      placement: "center" as const,
+      content:
+        "This Products page lets you define SKUs, HSN codes and GST rates used when creating invoices.",
+    },
+    {
+      target: '[data-tour="products-list"]',
+      content:
+        "Here you can see all saved products and quickly edit or delete them.",
+    },
+    {
+      target: '[data-tour="products-actions"]',
+      content:
+        "Use these actions to export/import CSVs and add new products.",
+    },
+    {
+      target: '[data-tour="products-dialog"]',
+      content:
+        "The product dialog captures GST, HSN and optional product images for use on invoices.",
+    },
+  ];
   const [productName, setProductName] = useState("");
   const [hsnCode, setHsnCode] = useState("");
   const [gstRate, setGstRate] = useState("18%");
@@ -304,6 +327,7 @@ const Products = () => {
 
   return (
     <div className="space-y-6">
+      <PageTour tourId="products" steps={tourSteps} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Products</h1>
@@ -311,7 +335,7 @@ const Products = () => {
             Manage your product HSN codes and GST rates
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-tour="products-actions">
           <input
             ref={productsFileInputRef}
             type="file"
@@ -335,7 +359,10 @@ const Products = () => {
                 Add Product
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent
+              className="max-w-2xl max-h-[90vh] overflow-y-auto"
+              data-tour="products-dialog"
+            >
               <DialogHeader>
                 <DialogTitle>
                   {editingProduct ? "Edit Product" : "Add New Product"}

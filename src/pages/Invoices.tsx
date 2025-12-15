@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageTour } from "@/components/PageTour";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +42,29 @@ const Invoices = () => {
   const [loading, setLoading] = useState(false);
   const invoicesFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Invoice form state
+  const tourSteps = [
+    {
+      target: "body",
+      placement: "center" as const,
+      content:
+        "The Invoices page lets you create GST-compliant invoices and see a library of past invoices.",
+    },
+    {
+      target: '[data-tour="invoices-create"]',
+      content:
+        "Use this tab to enter customer details, add line items and review GST/TCS before issuing.",
+    },
+    {
+      target: '[data-tour="invoices-summary"]',
+      content:
+        "This summary calculates GST splits, TCS and the final invoice total for you.",
+    },
+    {
+      target: '[data-tour="invoices-library"]',
+      content:
+        "The invoice library shows issued invoices with quick PDF download for each.",
+    },
+  ];
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerGstin, setCustomerGstin] = useState("");
@@ -525,6 +548,7 @@ const Invoices = () => {
 
   return (
     <div className="space-y-6">
+      <PageTour tourId="invoices" steps={tourSteps} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Invoices</h1>
@@ -538,7 +562,7 @@ const Invoices = () => {
           <TabsTrigger value="library">Invoice Library ({invoices.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="create" className="space-y-6">
+        <TabsContent value="create" className="space-y-6" data-tour="invoices-create">
           <div className="grid lg:grid-cols-2 gap-6">
             <Card className="p-6 space-y-6">
               <div>
@@ -703,7 +727,7 @@ const Invoices = () => {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6" data-tour="invoices-summary">
               <h3 className="font-semibold mb-4">Invoice Summary</h3>
               
               <div className="space-y-3 mb-6">
@@ -779,7 +803,7 @@ const Invoices = () => {
         </TabsContent>
 
         <TabsContent value="library">
-          <Card className="p-6">
+          <Card className="p-6" data-tour="invoices-library">
             {invoices.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
