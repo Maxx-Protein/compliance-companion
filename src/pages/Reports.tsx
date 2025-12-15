@@ -6,6 +6,15 @@ import { Download, FileText, TrendingUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 
 const Reports = () => {
   const { user } = useAuth();
@@ -23,24 +32,105 @@ const Reports = () => {
   const fetchData = async () => {
     const [invoicesRes, filingsRes] = await Promise.all([
       supabase.from("invoices").select("*").eq("user_id", user?.id),
-      supabase.from("gst_filings").select("*").eq("user_id", user?.id)
+      supabase.from("gst_filings").select("*").eq("user_id", user?.id),
     ]);
 
     if (invoicesRes.data) setInvoices(invoicesRes.data);
     if (filingsRes.data) setFilings(filingsRes.data);
   };
 
-  const calculateMonthlyStats = () => {
-    const totalSales = invoices.reduce((sum, inv) => sum + parseFloat(inv.total_amount || 0), 0);
-    const totalGst = invoices.reduce((sum, inv) => 
-      sum + parseFloat(inv.sgst_amount || 0) + parseFloat(inv.cgst_amount || 0) + parseFloat(inv.igst_amount || 0), 0
+  const filteredInvoices = invoices.filter((inv) => {
+    if (!inv.invoice_date) return false;
+    const date = new Date(inv.invoice_date);
+    const yearMatch = selectedYear
+      ? date.getFullYear().toString() === selectedYear
+      : true;
+    const monthMatch = selectedMonth
+      ? (date.getMonth() + 1).toString().padStart(2, "0") === selectedMonth
+      : true;
+    return yearMatch && monthMatch;
+  });
+
+  const monthlyStats = (() => {
+    const list = selectedMonth || selectedYear ? filteredInvoices : invoices;
+    const totalSales = list.reduce(
+      (sum, inv) => sum + Number(inv.total_amount || 0),
+      0
     );
-    const avgInvoice = invoices.length > 0 ? totalSales / invoices.length : 0;
+    const totalGst = list.reduce(
+      (sum, inv) =>
+        sum +
+        Number(inv.sgst_amount || 0) +
+        Number(inv.cgst_amount || 0) +
+        Number(inv.igst_amount || 0),
+      0
+    );
+    const tcs = list.reduce(
+      (sum, inv) => sum + Number(inv.tcs_deducted || 0),
+      0
+    );
+    const avgInvoice = list.length > 0 ? totalSales / list.length : 0;
 
-    return { totalSales, totalGst, avgInvoice, invoiceCount: invoices.length };
-  };
+    return {
+      totalSales,
+      totalGst,
+      tcs,
+      avgInvoice,
+      invoiceCount: list.length,
+    };
+  })();
 
-  const stats = calculateMonthlyStats();
+  const productPerformance = Object.values(
+    filteredInvoices.reduce((acc: any, inv) => {
+      const items = (inv.items || []) as any[];
+      items.forEach((item) => {
+        const key = item.product_name || item.hsn_code || "Unknown";
+        if (!acc[key]) {
+          acc[key] = {
+            name: key,
+            sales: 0,
+            gst: 0,
+          };
+        }
+        const amount = Number(item.amount || 0);
+        const gstPercent = parseFloat(item.gst_rate || "0") / 100;
+        const gstAmount = amount * gstPercent;
+        acc[key].sales += amount;
+        acc[key].gst += gstAmount;
+      });
+      return acc;
+    }, {})
+  );
+
+  const monthlyTrend = invoices.reduce((acc: any, inv) => {
+    if (!inv.invoice_date) return acc;
+    const date = new Date(inv.invoice_date);
+    const key = `${date.getFullYear()}-${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}`;
+    if (!acc[key]) {
+      acc[key] = {
+        month: key,
+        sales: 0,
+        gst: 0,
+        tcs: 0,
+      };
+    }
+    const sales = Number(inv.total_amount || 0);
+    const gst =
+      Number(inv.sgst_amount || 0) +
+      Number(inv.cgst_amount || 0) +
+      Number(inv.igst_amount || 0);
+    const tcs = Number(inv.tcs_deducted || 0);
+    acc[key].sales += sales;
+    acc[key].gst += gst;
+    acc[key].tcs += tcs;
+    return acc;
+  }, {} as any);
+
+  const monthlyTrendData = Object.values(monthlyTrend).sort((a: any, b: any) =>
+    a.month.localeCompare(b.month)
+  );
 
   return (
     <div className="space-y-6">
@@ -125,8 +215,10 @@ const Reports = () => {
             <span className="text-sm text-muted-foreground">Total Sales</span>
             <TrendingUp className="w-5 h-5 text-primary" />
           </div>
-          <p className="text-2xl font-bold">₹{stats.totalSales.toFixed(2)}</p>
-          <p className="text-xs text-muted-foreground mt-1">All time</p>
+          <p className="text-2xl font-bold">₹{monthlyStats.totalSales.toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {selectedMonth || selectedYear ? "In selected period" : "All time"}
+          </p>
         </Card>
 
         <Card className="p-6">
@@ -134,8 +226,17 @@ const Reports = () => {
             <span className="text-sm text-muted-foreground">Total GST</span>
             <FileText className="w-5 h-5 text-primary" />
           </div>
-          <p className="text-2xl font-bold">₹{stats.totalGst.toFixed(2)}</p>
+          <p className="text-2xl font-bold">₹{monthlyStats.totalGst.toFixed(2)}</p>
           <p className="text-xs text-muted-foreground mt-1">Collected</p>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">TCS (1%)</span>
+            <FileText className="w-5 h-5 text-primary" />
+          </div>
+          <p className="text-2xl font-bold">₹{monthlyStats.tcs.toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground mt-1">On marketplace sales</p>
         </Card>
 
         <Card className="p-6">
@@ -143,42 +244,33 @@ const Reports = () => {
             <span className="text-sm text-muted-foreground">Avg Invoice</span>
             <FileText className="w-5 h-5 text-primary" />
           </div>
-          <p className="text-2xl font-bold">₹{stats.avgInvoice.toFixed(2)}</p>
+          <p className="text-2xl font-bold">₹{monthlyStats.avgInvoice.toFixed(2)}</p>
           <p className="text-xs text-muted-foreground mt-1">Per invoice</p>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Invoices</span>
-            <FileText className="w-5 h-5 text-primary" />
-          </div>
-          <p className="text-2xl font-bold">{stats.invoiceCount}</p>
-          <p className="text-xs text-muted-foreground mt-1">Total count</p>
         </Card>
       </div>
 
       <Card className="p-6">
         <h2 className="text-lg font-semibold mb-4">Quick Insights</h2>
-        
+
         <div className="space-y-4">
           <div className="p-4 bg-muted/30 rounded-lg">
-            <h3 className="font-medium mb-2">Tax Summary (All Time)</h3>
+            <h3 className="font-medium mb-2">Tax Summary</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Total Sales</p>
-                <p className="font-semibold">₹{stats.totalSales.toFixed(2)}</p>
+                <p className="font-semibold">₹{monthlyStats.totalSales.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">GST Collected</p>
-                <p className="font-semibold">₹{stats.totalGst.toFixed(2)}</p>
+                <p className="font-semibold">₹{monthlyStats.totalGst.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Invoices</p>
-                <p className="font-semibold">{stats.invoiceCount}</p>
+                <p className="font-semibold">{monthlyStats.invoiceCount}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Avg Value</p>
-                <p className="font-semibold">₹{stats.avgInvoice.toFixed(2)}</p>
+                <p className="font-semibold">₹{monthlyStats.avgInvoice.toFixed(2)}</p>
               </div>
             </div>
           </div>
