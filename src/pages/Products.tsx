@@ -3,9 +3,21 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Plus, Trash2, Edit, Package as PackageIcon } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
@@ -33,6 +45,8 @@ const Products = () => {
   const [bisCertNumber, setBisCertNumber] = useState("");
   const [bisExpiryDate, setBisExpiryDate] = useState("");
 
+  const productsFileInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     if (user) {
       fetchProducts();
@@ -45,7 +59,7 @@ const Products = () => {
       .select("*")
       .eq("user_id", user?.id)
       .order("created_at", { ascending: false });
-    
+
     if (data) setProducts(data);
   };
 
@@ -108,9 +122,7 @@ const Products = () => {
         .update(productData)
         .eq("id", editingProduct.id));
     } else {
-      ({ error } = await supabase
-        .from("products")
-        .insert(productData));
+      ({ error } = await supabase.from("products").insert(productData));
     }
 
     setLoading(false);
@@ -171,7 +183,11 @@ const Products = () => {
       p.bis_expiry_date ?? "",
     ]);
 
-    const csv = [productsCsvHeaders.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const csv = [
+      productsCsvHeaders.join(","),
+      ...rows.map((r) => r.join(",")),
+    ].join("\n");
+
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -182,8 +198,6 @@ const Products = () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-
-  const productsFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleProductsFileClick = () => {
     productsFileInputRef.current?.click();
@@ -286,7 +300,9 @@ const Products = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Products</h1>
-          <p className="text-muted-foreground">Manage your product HSN codes and GST rates</p>
+          <p className="text-muted-foreground">
+            Manage your product HSN codes and GST rates
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -299,10 +315,7 @@ const Products = () => {
           <Button variant="outline" onClick={exportProductsCsv}>
             Export CSV
           </Button>
-          <Button
-            variant="outline"
-            onClick={handleProductsFileClick}
-          >
+          <Button variant="outline" onClick={handleProductsFileClick}>
             Import CSV
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -322,134 +335,143 @@ const Products = () => {
                 </DialogTitle>
               </DialogHeader>
 
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <Label>Product Name *</Label>
-                  <Input 
-                    value={productName}
-                    onChange={(e) => setProductName(e.target.value)}
-                    placeholder="Stainless Steel Water Bottle"
-                  />
-                </div>
-                
-                <div>
-                  <Label>HSN Code *</Label>
-                  <Input 
-                    value={hsnCode}
-                    onChange={(e) => setHsnCode(e.target.value)}
-                    placeholder="7323"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    HSN/SAC classification code
-                  </p>
-                </div>
-                
-                <div>
-                  <Label>GST Rate *</Label>
-                  <Select value={gstRate} onValueChange={setGstRate}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GST_RATES.map(rate => (
-                        <SelectItem key={rate} value={rate}>{rate}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label>Unit Price (₹)</Label>
-                  <Input 
-                    type="number"
-                    value={unitPrice}
-                    onChange={(e) => setUnitPrice(e.target.value)}
-                    placeholder="299.00"
-                  />
-                </div>
-                
-                <div>
-                  <Label>Category</Label>
-                  <Input 
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    placeholder="Kitchen & Dining"
-                  />
-                </div>
-                
-                <div className="col-span-2">
-                  <Label>SKU (Optional)</Label>
-                  <Input 
-                    value={sku}
-                    onChange={(e) => setSku(e.target.value)}
-                    placeholder="SKU-001"
-                  />
-                </div>
-              </div>
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Label>Product Name *</Label>
+                    <Input
+                      value={productName}
+                      onChange={(e) => setProductName(e.target.value)}
+                      placeholder="Stainless Steel Water Bottle"
+                    />
+                  </div>
 
-              <div className="border-t pt-4">
-                <div className="flex items-center justify-between mb-4">
                   <div>
-                    <Label>BIS Certification Required</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Applicable for electronics, toys, etc.
+                    <Label>HSN Code *</Label>
+                    <Input
+                      value={hsnCode}
+                      onChange={(e) => setHsnCode(e.target.value)}
+                      placeholder="7323"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      HSN/SAC classification code
                     </p>
                   </div>
-                  <Switch 
-                    checked={bisCertified}
-                    onCheckedChange={setBisCertified}
-                  />
+
+                  <div>
+                    <Label>GST Rate *</Label>
+                    <Select value={gstRate} onValueChange={setGstRate}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GST_RATES.map((rate) => (
+                          <SelectItem key={rate} value={rate}>
+                            {rate}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Unit Price (₹)</Label>
+                    <Input
+                      type="number"
+                      value={unitPrice}
+                      onChange={(e) => setUnitPrice(e.target.value)}
+                      placeholder="299.00"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Category</Label>
+                    <Input
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      placeholder="Kitchen & Dining"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label>SKU (Optional)</Label>
+                    <Input
+                      value={sku}
+                      onChange={(e) => setSku(e.target.value)}
+                      placeholder="SKU-001"
+                    />
+                  </div>
                 </div>
 
-                {bisCertified && (
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-4">
                     <div>
-                      <Label>BIS Certificate Number</Label>
-                      <Input 
-                        value={bisCertNumber}
-                        onChange={(e) => setBisCertNumber(e.target.value)}
-                        placeholder="R-1234567"
-                      />
+                      <Label>BIS Certification Required</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Applicable for electronics, toys, etc.
+                      </p>
                     </div>
-                    <div>
-                      <Label>BIS Expiry Date</Label>
-                      <Input 
-                        type="date"
-                        value={bisExpiryDate}
-                        onChange={(e) => setBisExpiryDate(e.target.value)}
-                      />
-                    </div>
+                    <Switch
+                      checked={bisCertified}
+                      onCheckedChange={setBisCertified}
+                    />
                   </div>
-                )}
-              </div>
 
-              <div className="flex gap-2 pt-4">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => setIsDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  className="flex-1 bg-primary hover:bg-primary-hover"
-                  onClick={saveProduct}
-                  disabled={loading}
-                >
-                  {loading ? "Saving..." : editingProduct ? "Update" : "Add Product"}
-                </Button>
+                  {bisCertified && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>BIS Certificate Number</Label>
+                        <Input
+                          value={bisCertNumber}
+                          onChange={(e) => setBisCertNumber(e.target.value)}
+                          placeholder="R-1234567"
+                        />
+                      </div>
+                      <div>
+                        <Label>BIS Expiry Date</Label>
+                        <Input
+                          type="date"
+                          value={bisExpiryDate}
+                          onChange={(e) => setBisExpiryDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setIsDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1 bg-primary hover:bg-primary-hover"
+                    onClick={saveProduct}
+                    disabled={loading}
+                  >
+                    {loading
+                      ? "Saving..."
+                      : editingProduct
+                        ? "Update"
+                        : "Add Product"}
+                  </Button>
+                </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card className="p-6">
         {products.length === 0 ? (
           <div className="text-center py-12">
             <PackageIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-4">No products yet. Add your first product!</p>
+            <p className="text-muted-foreground mb-4">
+              No products yet. Add your first product!
+            </p>
             <Button onClick={() => openDialog()}>
               <Plus className="w-4 h-4 mr-2" />
               Add Product
@@ -457,8 +479,8 @@ const Products = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {products.map(product => (
-              <div 
+            {products.map((product) => (
+              <div
                 key={product.id}
                 className="flex items-start justify-between p-4 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors"
               >
@@ -472,21 +494,25 @@ const Products = () => {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
                     <div>HSN: {product.hsn_code}</div>
-                    {product.unit_price && <div>Price: ₹{product.unit_price}</div>}
-                    {product.category && <div>Category: {product.category}</div>}
+                    {product.unit_price && (
+                      <div>Price: ₹{product.unit_price}</div>
+                    )}
+                    {product.category && (
+                      <div>Category: {product.category}</div>
+                    )}
                     {product.sku && <div>SKU: {product.sku}</div>}
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={() => openDialog(product)}
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={() => deleteProduct(product.id)}
                   >
